@@ -1,8 +1,9 @@
 // server.js
-const express = require('express');
-const routes = require('./routes');
+const express = require("express");
+const routes = require("./routes");
 
 const app = express();
+app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 app.use(routes);

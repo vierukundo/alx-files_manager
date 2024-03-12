@@ -1,11 +1,11 @@
 // utils/redis.js
-import { createClient } from 'redis';
+import { createClient } from "redis";
 
 class RedisClient {
   constructor() {
     this.client = createClient();
 
-    this.client.on('error', (err) => {
+    this.client.on("error", (err) => {
       console.error(err);
     });
   }
@@ -53,5 +53,4 @@ class RedisClient {
 }
 
 const redisClient = new RedisClient();
-
-export default redisClient;
+module.exports = redisClient;
