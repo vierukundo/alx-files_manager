@@ -1,6 +1,7 @@
 // controllers/FilesController.js
 import { ObjectID } from "mongodb";
 import dbClient from "../utils/db";
+import mime from "mime-types";
 import redisClient from "../utils/redis";
 import { v4 as uuidv4 } from "uuid";
 import { promises as fs } from "fs";
@@ -41,6 +42,54 @@ const FilesController = {
     return res.status(200).json(file);
   },
 
+  async putPublish(req, res) {
+    const user = await FilesController.fetchUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { id } = req.params;
+    const files = dbClient.db.collection("files");
+    const objId = new ObjectID(id);
+    const isPublic = { $set: { isPublic: true } };
+    const opts = { returnOriginal: false };
+    files.findOneAndUpdate(
+      { _id: objId, userId: user._id },
+      isPublic,
+      opts,
+      (err, result) => {
+        if (!result.lastErrorObject.updatedExisting) {
+          return res.status(404).json({ error: "Not found" });
+        }
+        return res.status(200).json(result.value);
+      },
+    );
+    return null;
+  },
+
+  async putUnpublish(req, res) {
+    const user = await FilesController.fetchUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { id } = req.params;
+    const files = dbClient.db.collection("files");
+    const objId = new ObjectID(id);
+    const isPublic = { $set: { isPublic: false } };
+    const opts = { returnOriginal: false };
+    files.findOneAndUpdate(
+      { _id: objId, userId: user._id },
+      isPublic,
+      opts,
+      (err, result) => {
+        if (!result.lastErrorObject.updatedExisting) {
+          return res.status(404).json({ error: "Not found" });
+        }
+        return res.status(200).json(result.value);
+      },
+    );
+    return null;
+  },
+
   async getIndex(req, res) {
     const user = await FilesController.fetchUser(req);
 
@@ -49,8 +98,6 @@ const FilesController = {
     }
 
     const { parentId, page } = req.query;
-    const itemsPerPage = 20;
-    const skip = page * itemsPerPage;
     let queryBuilder;
     const pager = page || 0;
     const files = dbClient.db.collection("files");
@@ -177,6 +224,64 @@ const FilesController = {
           console.log(error);
         });
     }
+  },
+
+  async getFile(req, res) {
+    const { id } = req.params;
+    const files = dbClient.db.collection("files");
+    const objId = new ObjectID(id);
+    files.findOne({ _id: objId }, async (err, file) => {
+      if (!file) {
+        return res.status(404).json({ error: "Not found" });
+      }
+      if (file.isPublic) {
+        if (file.type === "folder") {
+          return res
+            .status(400)
+            .json({ error: "A folder doesn't have content" });
+        }
+        try {
+          let filename = file.localPath;
+          const { size } = req.params;
+          if (size) {
+            filename = `${file.localPath}_${size}`;
+          }
+          const data = await fs.readFile(filename);
+          const contentType = mime.contentType(file.name);
+          return res.header("Content-Type", contentType).status(200).send(data);
+        } catch (err) {
+          return res.status(404).json({ error: "Not found" });
+        }
+      } else {
+        const user = await FilesController.fetchUser(req);
+        if (!user) {
+          return res.status(404).json({ error: "Not found" });
+        }
+        if (file.userId.toString() === user._id.toString()) {
+          if (file.type === "folder") {
+            return res
+              .status(400)
+              .json({ error: "A folder doesn't have content" });
+          }
+          try {
+            let filename = file.localPath;
+            const { size } = req.params;
+            if (size) {
+              filename = `${file.localPath}_${size}`;
+            }
+            const contentType = mime.contentType(file.name);
+            return res
+              .header("Content-Type", contentType)
+              .status(200)
+              .sendFile(filename);
+          } catch (err) {
+            return res.status(404).json({ error: "Not found" });
+          }
+        } else {
+          return res.status(400).json({ error: "Not found" });
+        }
+      }
+    });
   },
 };
 
