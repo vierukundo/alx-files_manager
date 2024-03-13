@@ -5,6 +5,8 @@ import mime from "mime-types";
 import redisClient from "../utils/redis";
 import { v4 as uuidv4 } from "uuid";
 import { promises as fs } from "fs";
+import Queue from "bull";
+const fileQueue = new Queue("fileQueue", "redis://127.0.0.1:6379");
 
 const FilesController = {
   async fetchUser(req) {
@@ -22,19 +24,18 @@ const FilesController = {
     }
     return null;
   },
-  async getShow(req, res) {
-    const { token } = req.params;
-    const key = `auth_${token}`;
-    const userId = await redisClient.get(key);
 
-    if (!userId) {
+  async getShow(req, res) {
+    const user = await FilesController.fetchUser(req);
+
+    if (!user) {
       res.status(401).json({ error: "Unauthorized" });
     }
-    const userObjID = new ObjectID(userId);
+    const objId = new ObjectID(req.params.id);
 
     const file = await dbClient.db
       .collection("files")
-      .findOne({ _id: userObjID });
+      .findOne({ _id: objId, userId: user._id });
 
     if (!file) {
       return res.status(404).json({ error: "Not found" });
@@ -219,6 +220,9 @@ const FilesController = {
             isPublic,
             parentId: parentId || 0,
           });
+          if (type === "image") {
+            fileQueue.add({ userId: user._id, fileId: result.insertedId });
+          }
         })
         .catch((error) => {
           console.log(error);
