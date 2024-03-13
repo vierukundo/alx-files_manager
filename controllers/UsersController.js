@@ -49,19 +49,24 @@ class UsersController {
       res.status(400).json({ error: "Missing password" });
       return;
     }
-    const existingUser = users.findOne({
-      email: email,
-    });
-
-    if (existingUser) {
-      res.status(400).json({ error: "Already exist" });
-      return;
-    }
-
-    const hashed_password = hash_pass(verified_password);
-    const user = users.insertOne({ email, hashed_password });
-
-    res.status(200).json({ id: user._id.toString(), email: user.email });
+    users.findOne(
+      {
+        email: email,
+      },
+      (err, doesExist) => {
+        if (doesExist) {
+          res.status(400).json({ error: "Already exist" });
+        } else {
+          const hashed_password = hash_pass(password);
+          users
+            .insertOne({ email: email, password: hashed_password })
+            .then((result) => {
+              res.status(201).json({ id: result.insertedId, email: email });
+            })
+            .catch((err) => consol.log(err));
+        }
+      },
+    );
   }
 }
 
