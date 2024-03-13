@@ -58,19 +58,24 @@ class UsersController {
       res.status(400).json({ error: 'Missing password' });
       return;
     }
-    const existingUser = await users.findOne({
-      email,
-    });
-
-    if (existingUser) {
-      res.status(400).json({ error: 'Already exist' });
-      return;
-    }
-
-    const hashedPassword = hashPassword(password); // removed verified_passowrd which is undefined
-    const user = await users.insertOne({ email, hashedPassword });
-
-    res.status(200).json({ id: user._id.toString(), email: user.email });
+    users.findOne(
+      {
+        email: email,
+      },
+      (err, doesExist) => {
+        if (doesExist) {
+          res.status(400).json({ error: "Already exist" });
+        } else {
+          const hashed_password = hash_pass(password);
+          users
+            .insertOne({ email: email, password: hashed_password })
+            .then((result) => {
+              res.status(201).json({ id: result.insertedId, email: email });
+            })
+            .catch((err) => consol.log(err));
+        }
+      },
+    );
   }
 }
 

@@ -33,25 +33,24 @@ const AuthController = {
     const [email, password] = credentials.split(':');
     const hashedPassword = hashPassword(password);
 
-    // await dbClient.connect();
-    dbClient.isAlive();
-    const usersCollection = dbClient.db.collection('users');
-    const user = await usersCollection.findOne({
-      email,
-      password: hashedPassword,
-    });
-
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const token = uuidv4();
-    const key = `auth_${token}`;
-
-    await redisClient.set(key, user._id.toString(), 24 * 60 * 60); // 24 hours expiration time
-
-    res.status(200).json({ token });
+    const usersCollection = dbClient.db.collection("users");
+    usersCollection.findOne(
+      {
+        email: email,
+        password: hashedPassword,
+      },
+      //BUG: User is not being found?
+      async (err, reply) => {
+        if (reply) {
+          const token = uuidv4();
+          const key = `auth_${token}`;
+          await redisClient.set(key, reply._id.toString(), 24 * 60 * 60); // 24 hours expiration time
+          res.status(200).json({ token });
+        } else {
+          res.status(401).json({ error: "Unauthorized" });
+        }
+      },
+    );
   },
 
   async getDisconnect(req, res) {
