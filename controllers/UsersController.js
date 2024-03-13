@@ -42,12 +42,12 @@ class UsersController {
   static postNew(req, res) {
     const users = dbClient.db.collection('users');
     const { email, password } = req.body;
-    if (email.length === 0) {
+    if (!email) {
       res.status(400).json({ error: 'Missing email' });
       return;
     }
 
-    if (password.length === 0) {
+    if (!password) {
       res.status(400).json({ error: 'Missing password' });
       return;
     }
