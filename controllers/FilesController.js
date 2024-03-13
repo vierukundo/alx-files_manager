@@ -9,6 +9,10 @@ import Queue from "bull";
 const fileQueue = new Queue("fileQueue", "redis://127.0.0.1:6379");
 
 const FilesController = {
+  /**
+   * @param {Request} req Request
+   * @returns `object(user)` Return user object from mongodb
+   */
   async fetchUser(req) {
     const token = req.header("X-Token");
     const key = `auth_${token}`;
@@ -25,6 +29,11 @@ const FilesController = {
     return null;
   },
 
+  /**
+   * @param {Request} req Express Request
+   * @param {Response} res Express Response
+   * @returns {json_response} Json response
+   */
   async getShow(req, res) {
     const user = await FilesController.fetchUser(req);
 
@@ -43,6 +52,11 @@ const FilesController = {
     return res.status(200).json(file);
   },
 
+  /**
+   * @param {Request} req Express Request
+   * @param {Response} res Express Response
+   * @returns {json_response} Json response
+   */
   async putPublish(req, res) {
     const user = await FilesController.fetchUser(req);
     if (!user) {
@@ -67,6 +81,11 @@ const FilesController = {
     return null;
   },
 
+  /**
+   * @param {Request} req Express Request
+   * @param {Response} res Express Response
+   * @returns {json_response} Json response
+   */
   async putUnpublish(req, res) {
     const user = await FilesController.fetchUser(req);
     if (!user) {
@@ -91,6 +110,11 @@ const FilesController = {
     return null;
   },
 
+  /**
+   * @param {Request} req Express Request
+   * @param {Request} res Express Response
+   * @returns {json_response} Json response
+   */
   async getIndex(req, res) {
     const user = await FilesController.fetchUser(req);
 
@@ -140,6 +164,11 @@ const FilesController = {
     return null;
   },
 
+  /**
+   * @param {Request} req Express Request
+   * @param {Request} res Express Response
+   * @returns {json_response} Json response
+   */
   async postUpload(req, res) {
     const user = await FilesController.fetchUser(req);
     const { name, type, parentId, data } = req.body;
@@ -230,6 +259,11 @@ const FilesController = {
     }
   },
 
+  /**
+   * @param {Request} req Express Request
+   * @param {Request} res Express Response
+   * @returns {json_response} Json response
+   */
   async getFile(req, res) {
     const { id } = req.params;
     const files = dbClient.db.collection("files");
