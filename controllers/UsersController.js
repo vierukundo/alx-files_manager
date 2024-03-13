@@ -2,8 +2,13 @@
 import { ObjectID } from 'mongodb';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
+import crypto from 'crypto';
 
-const hashPass = require('sha1');
+const hashPassword = (password) => {
+  const sha1 = crypto.createHash('sha1');
+  sha1.update(password);
+  return sha1.digest('hex');
+};
 
 class UsersController {
   static async getMe(req, res) {
@@ -60,7 +65,7 @@ class UsersController {
       return;
     }
 
-    const hashedPassword = hashPass(password); // removed verified_passowrd which is undefined
+    const hashedPassword = hashPassword(password); // removed verified_passowrd which is undefined
     const user = users.insertOne({ email, hashedPassword });
 
     res.status(200).json({ id: user._id.toString(), email: user.email });
