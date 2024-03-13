@@ -7,18 +7,18 @@ const dbUrl = `mongodb://${HOST}:${PORT}`;
 
 class DBClient {
   constructor() {
-    this.client = new MongoClient(dbUrl, {
-      useUnifiedTopology: true,
-      useNewUrlParser: true,
-    });
-    this.client
-      .connect()
-      .then(() => {
+    this.client = new MongoClient(dbUrl, { useUnifiedTopology: true });
+
+    // Make the constructor asynchronous
+    (async () => {
+      try {
+        await this.client.connect();
         this.db = this.client.db(`${DB_NAME}`);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+        console.log('Connected to MongoDB');
+      } catch (err) {
+        console.error('Error connecting to MongoDB:', err);
+      }
+    })();
   }
 
   /**

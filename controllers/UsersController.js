@@ -1,8 +1,8 @@
 // controllers/UsersController.js
 import { ObjectID } from 'mongodb';
+import crypto from 'crypto';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
-import crypto from 'crypto';
 
 const hashPassword = (password) => {
   const sha1 = crypto.createHash('sha1');
@@ -44,8 +44,10 @@ class UsersController {
    * @param {Response} res
    * @returns `json` of user_id & email
    */
-  static postNew(req, res) {
-    const users = dbClient.db.collection('users');
+  static async postNew(req, res) {
+    await dbClient.client.connect();
+    const db = dbClient.client.db(dbClient.database);
+    const users = db.collection('users');
     const { email, password } = req.body;
     if (!email) {
       res.status(400).json({ error: 'Missing email' });
@@ -56,7 +58,7 @@ class UsersController {
       res.status(400).json({ error: 'Missing password' });
       return;
     }
-    const existingUser = users.findOne({
+    const existingUser = await users.findOne({
       email,
     });
 
@@ -66,7 +68,7 @@ class UsersController {
     }
 
     const hashedPassword = hashPassword(password); // removed verified_passowrd which is undefined
-    const user = users.insertOne({ email, hashedPassword });
+    const user = await users.insertOne({ email, hashedPassword });
 
     res.status(200).json({ id: user._id.toString(), email: user.email });
   }
