@@ -42,27 +42,53 @@ const FilesController = {
   },
 
   async getIndex(req, res) {
-    const token = req.header("X-Token");
-    const key = `auth_${token}`;
-    const userId = await redisClient.get(key);
+    const user = await FilesController.fetchUser(req);
 
-    if (!userId) {
+    if (!user) {
       res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { parentId = "0", page = 0 } = req.query;
+    const { parentId, page } = req.query;
     const itemsPerPage = 20;
     const skip = page * itemsPerPage;
+    let queryBuilder;
+    const pager = page || 0;
+    const files = dbClient.db.collection("files");
+    if (!parentId) {
+      queryBuilder = { userId: user._id };
+    } else {
+      queryBuilder = { userId: user._id, parentId: ObjectID(parentId) };
+    }
+    files
+      .aggregate([
+        { $match: queryBuilder },
+        { $sort: { _id: -1 } },
+        {
+          $facet: {
+            metadata: [
+              { $count: "total" },
+              { $addFields: { page: parseInt(pager, 10) } },
+            ],
+            data: [{ $skip: 20 * parseInt(pager, 10) }, { $limit: 20 }],
+          },
+        },
+      ])
+      .toArray((err, result) => {
+        if (result) {
+          const filtered = result[0].data.map((mongoFile) => {
+            const tmpFile = {
+              ...mongoFile,
+              id: mongoFile._id,
+            };
+            delete tmpFile._id;
+            delete tmpFile.localPath;
+            return tmpFile;
+          });
+          return res.status(200).json(filtered);
+        }
 
-    const files = await dbClient.client
-      .db(dbClient.database)
-      .collection("files")
-      .find({ userId, parentId })
-      .skip(skip)
-      .limit(itemsPerPage)
-      .toArray();
-
-    //return res.status(200).json(files);
+        return res.status(400).json({ error: "Not found" });
+      });
     return null;
   },
 
