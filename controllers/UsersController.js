@@ -44,7 +44,7 @@ class UsersController {
       return;
     }
 
-    res.status(200).json({ id: user._id.toString(), email: user.email });
+    res.status(201).json({ id: user._id.toString(), email: user.email });
   }
 
   /** Post new user
