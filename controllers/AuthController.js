@@ -23,8 +23,12 @@ const AuthController = {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-
-    const credentials = base64url(authHeader.slice('Basic '.length));
+    let credentials;
+    try {
+      credentials = base64url(authHeader.slice('Basic '.length));
+    } catch (err) {
+      res.status(401).json({ error: 'Unauthorized' });
+    }
     const [email, password] = credentials.split(':');
     const hashedPassword = hashPassword(password);
 
