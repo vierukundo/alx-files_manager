@@ -172,6 +172,9 @@ const FilesController = {
    */
   async postUpload(req, res) {
     const user = await FilesController.fetchUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const {
       name, type, parentId, data,
     } = req.body;
@@ -194,7 +197,7 @@ const FilesController = {
         return res.status(400).json({ error: 'Parent not found' });
       }
       if (file.type !== 'folder') {
-        return res.status(400).json({ error: 'Parent is not folder' });
+        return res.status(400).json({ error: 'Parent is not a folder' });
       }
     }
     if (type === 'folder') {
