@@ -1,23 +1,14 @@
-// controllers/AuthController.js
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { ObjectID } from 'mongodb';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
 
-/** Base64 decoder
- * @param {string} url base64 encoded string
- * @returns {string} decoded base64 string
- */
 const base64url = (url) => {
   const buffer = Buffer.from(url, 'base64');
   return buffer.toString('utf-8');
 };
 
-/**
- * @param {string} password password to hash
- * @returns {string} hashed passwqord
- */
 const hashPassword = (password) => {
   const sha1 = crypto.createHash('sha1');
   sha1.update(password);
@@ -25,11 +16,6 @@ const hashPassword = (password) => {
 };
 
 const AuthController = {
-  /**
-   * @param {Request} req Express Request
-   * @param {Response} res Express Response
-   * @returns {JSON} json response
-   */
   async getConnect(req, res) {
     const authHeader = req.headers.authorization;
 
@@ -43,29 +29,22 @@ const AuthController = {
     const hashedPassword = hashPassword(password);
 
     const usersCollection = dbClient.db.collection('users');
-    usersCollection.findOne(
-      {
-        email,
-        password: hashedPassword,
-      },
-      async (err, reply) => {
-        if (reply) {
-          const token = uuidv4();
-          const key = `auth_${token}`;
-          await redisClient.set(key, reply._id.toString(), 24 * 60 * 60);
+    const user = await usersCollection.findOne({ email, password: hashedPassword });
+    if (user) {
+      const token = uuidv4();
+      const key = `auth_${token}`;
+      redisClient.set(key, user._id.toString(), 24 * 60 * 60)
+        .then(() => {
           res.status(200).json({ token });
-        } else {
+        })
+        .catch(() => {
           res.status(401).json({ error: 'Unauthorized' });
-        }
-      },
-    );
+        });
+    } else {
+      res.status(401).json({ error: 'Unauthorized' });
+    }
   },
 
-  /**
-   * @param {Request} req Express Request
-   * @param {Response} res Express Response
-   * @returns {JSON} json response
-   */
   async getDisconnect(req, res) {
     const token = req.header('X-Token');
 
@@ -75,27 +54,44 @@ const AuthController = {
     }
 
     const key = `auth_${token}`;
-    const userId = await redisClient.get(key);
+    redisClient.get(key)
+      .then((userId) => {
+        if (!userId) {
+          res.status(401).json({ error: 'Unauthorized' });
+          return;
+        }
 
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+        const usersCollection = dbClient.db.collection('users');
 
-    const usersCollection = dbClient.db.collection('users');
+        const userObjID = new ObjectID(userId);
+        usersCollection.findOne({ _id: userObjID })
+          .then((user) => {
+            if (!user) {
+              res.status(401).json({ error: 'Unauthorized' });
+              return;
+            }
 
-    const userObjID = new ObjectID(userId);
-    const user = await usersCollection.findOne({ _id: userObjID });
-
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    await usersCollection.deleteOne({ _id: userObjID });
-    await redisClient.del(key);
-
-    res.status(204).send();
+            usersCollection.deleteOne({ _id: userObjID })
+              .then(() => {
+                redisClient.del(key)
+                  .then(() => {
+                    res.status(204).send();
+                  })
+                  .catch(() => {
+                    console.log('Failed to delete key token');
+                  });
+              })
+              .catch(() => {
+                res.status(401).json({ error: 'Unauthorized' });
+              });
+          })
+          .catch(() => {
+            res.status(401).json({ error: 'Unauthorized' });
+          });
+      })
+      .catch(() => {
+        res.status(401).json({ error: 'Unauthorized' });
+      });
   },
 };
 
