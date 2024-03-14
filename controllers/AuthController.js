@@ -71,15 +71,9 @@ const AuthController = {
               return;
             }
 
-            usersCollection.deleteOne({ _id: userObjID })
+            redisClient.del(key)
               .then(() => {
-                redisClient.del(key)
-                  .then(() => {
-                    res.status(204).send();
-                  })
-                  .catch(() => {
-                    console.log('Failed to delete key token');
-                  });
+                res.status(204).send();
               })
               .catch(() => {
                 res.status(401).json({ error: 'Unauthorized' });
