@@ -1,43 +1,43 @@
-import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto";
-import { ObjectID } from "mongodb";
-import redisClient from "../utils/redis";
-import dbClient from "../utils/db";
+import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
+import { ObjectID } from 'mongodb';
+import redisClient from '../utils/redis';
+import dbClient from '../utils/db';
 
 const base64url = (url) => {
-  const buffer = Buffer.from(url, "base64");
-  return buffer.toString("utf-8");
+  const buffer = Buffer.from(url, 'base64');
+  return buffer.toString('utf-8');
 };
 
 const hashPassword = (password) => {
-  const sha1 = crypto.createHash("sha1");
+  const sha1 = crypto.createHash('sha1');
   sha1.update(password);
-  return sha1.digest("hex");
+  return sha1.digest('hex');
 };
 
 const AuthController = {
   async getConnect(req, res) {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Basic ")) {
-      res.status(401).json({ error: "Unauthorized" });
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
     let credentials;
     try {
-      credentials = base64url(authHeader.slice("Basic ".length));
+      credentials = base64url(authHeader.slice('Basic '.length));
     } catch (err) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
     }
 
-    if (!credentials.includes(":")) {
-      res.status(401).json({ error: "Unauthorized" });
+    if (!credentials.includes(':')) {
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const [email, password] = credentials.split(":");
+    const [email, password] = credentials.split(':');
     const hashedPassword = hashPassword(password);
 
-    const usersCollection = dbClient.db.collection("users");
+    const usersCollection = dbClient.db.collection('users');
     const user = await usersCollection.findOne({
       email,
       password: hashedPassword,
@@ -51,18 +51,18 @@ const AuthController = {
           res.status(200).json({ token });
         })
         .catch(() => {
-          res.status(401).json({ error: "Unauthorized" });
+          res.status(401).json({ error: 'Unauthorized' });
         });
     } else {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
     }
   },
 
   async getDisconnect(req, res) {
-    const token = req.header("X-Token");
+    const token = req.header('X-Token');
 
     if (!token) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
@@ -71,18 +71,18 @@ const AuthController = {
       .get(key)
       .then((userId) => {
         if (!userId) {
-          res.status(401).json({ error: "Unauthorized" });
+          res.status(401).json({ error: 'Unauthorized' });
           return;
         }
 
-        const usersCollection = dbClient.db.collection("users");
+        const usersCollection = dbClient.db.collection('users');
 
         const userObjID = new ObjectID(userId);
         usersCollection
           .findOne({ _id: userObjID })
           .then((user) => {
             if (!user) {
-              res.status(401).json({ error: "Unauthorized" });
+              res.status(401).json({ error: 'Unauthorized' });
               return;
             }
 
@@ -92,15 +92,15 @@ const AuthController = {
                 res.status(204).send();
               })
               .catch(() => {
-                res.status(401).json({ error: "Unauthorized" });
+                res.status(401).json({ error: 'Unauthorized' });
               });
           })
           .catch(() => {
-            res.status(401).json({ error: "Unauthorized" });
+            res.status(401).json({ error: 'Unauthorized' });
           });
       })
       .catch(() => {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({ error: 'Unauthorized' });
       });
   },
 };

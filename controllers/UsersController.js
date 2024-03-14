@@ -1,17 +1,17 @@
 // controllers/UsersController.js
-import { ObjectID } from "mongodb";
-import crypto from "crypto";
-import redisClient from "../utils/redis";
-import dbClient from "../utils/db";
+import { ObjectID } from 'mongodb';
+import crypto from 'crypto';
+import redisClient from '../utils/redis';
+import dbClient from '../utils/db';
 
 /**
  * @param {string} password password to hash
  * @returns {string} hashed passwqord
  */
 const hashPassword = (password) => {
-  const sha1 = crypto.createHash("sha1");
+  const sha1 = crypto.createHash('sha1');
   sha1.update(password);
-  return sha1.digest("hex");
+  return sha1.digest('hex');
 };
 
 class UsersController {
@@ -21,26 +21,26 @@ class UsersController {
    * @returns {JSON} json response
    */
   static async getMe(req, res) {
-    const token = req.header("X-Token");
+    const token = req.header('X-Token');
 
     if (!token) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
     const userId = await redisClient.get(`auth_${token}`);
 
     if (!userId) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
     const userObjID = new ObjectID(userId);
-    const usersCollection = dbClient.db.collection("users");
+    const usersCollection = dbClient.db.collection('users');
     const user = await usersCollection.findOne({ _id: userObjID });
 
     if (!user) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
@@ -55,15 +55,15 @@ class UsersController {
   static async postNew(req, res) {
     await dbClient.client.connect();
     const db = dbClient.client.db(dbClient.database);
-    const users = db.collection("users");
+    const users = db.collection('users');
     const { email, password } = req.body;
     if (!email) {
-      res.status(400).json({ error: "Missing email" });
+      res.status(400).json({ error: 'Missing email' });
       return;
     }
 
     if (!password) {
-      res.status(400).json({ error: "Missing password" });
+      res.status(400).json({ error: 'Missing password' });
       return;
     }
     users.findOne(
@@ -72,7 +72,7 @@ class UsersController {
       },
       (err, doesExist) => {
         if (doesExist) {
-          res.status(400).json({ error: "Already exist" });
+          res.status(400).json({ error: 'Already exist' });
         } else {
           const hashedPassword = hashPassword(password);
           users
